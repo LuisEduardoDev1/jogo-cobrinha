@@ -6,7 +6,6 @@ import math
 TAMANHO_JANELA = (600, 600)
 TAMANHO_PIXEL = 10
 
-
 CORES = [
     (0, 0, 255),    # Azul
     (0, 255, 0),    # Verde
@@ -20,10 +19,8 @@ CORES = [
     (255, 253, 208)    # Creme
 ]
 
-
 def comer(pos1, pos2):
     return pos1 == pos2
-
 
 def fora_dos_limites(pos):
     if 0 <= pos[0] < TAMANHO_JANELA[0] and 0 <= pos[1] < TAMANHO_JANELA[1]:
@@ -31,30 +28,68 @@ def fora_dos_limites(pos):
     else:
         return True
 
-
 def posicao_aleatoria():
     x = random.randint(0, TAMANHO_JANELA[0] - TAMANHO_PIXEL)
     y = random.randint(0, TAMANHO_JANELA[1] - TAMANHO_PIXEL)
     return x // TAMANHO_PIXEL * TAMANHO_PIXEL, y // TAMANHO_PIXEL * TAMANHO_PIXEL
-
 
 def reiniciar_jogo():
     global segmentos_cobra, direcao_cobra, maca, score, level
     segmentos_cobra = [{'pos': (250, 50), 'cor': random.choice(CORES)}]
     direcao_cobra = K_LEFT
     maca = {'pos': posicao_aleatoria(), 'cor': random.choice(CORES)}
+    while maca['cor'] == segmentos_cobra[0]['cor']:
+        maca['cor'] = random.choice(CORES)
     score = 0
     level = 1
 
+def tela_perdeu(score_max):
+    tela.fill((0, 0, 0))
+    fonte = pygame.font.Font(None, 36)
+    texto_perdeu = fonte.render("Você perdeu! Tente novamente", True, (255, 255, 255))
+    texto_score_max = fonte.render("Seu score máximo foi: " + str(score_max), True, (255, 255, 255))
+    tela.blit(texto_perdeu, (150, 250))
+    tela.blit(texto_score_max, (180, 300))
+
+    botao_reiniciar = pygame.Rect(250, 350, 100, 50)
+    botao_reiniciar_hover = False
+
+    if botao_reiniciar.collidepoint(pygame.mouse.get_pos()):
+        botao_reiniciar_hover = True
+
+    pygame.draw.rect(tela, (255, 0, 0) if botao_reiniciar_hover else (200, 0, 0), botao_reiniciar)
+    fonte_reiniciar = pygame.font.Font(None, 24)
+    superficie_texto_reiniciar = fonte_reiniciar.render("Reiniciar", True, (255, 255, 255))
+    texto_reiniciar = superficie_texto_reiniciar.get_rect(center=botao_reiniciar.center)
+    tela.blit(superficie_texto_reiniciar, texto_reiniciar)
+
+    pygame.display.update()
+
+    while True:
+        for evento in pygame.event.get():
+            if evento.type == QUIT:
+                pygame.quit()
+                quit()
+            elif evento.type == MOUSEBUTTONDOWN:
+                if evento.button == 1 and botao_reiniciar.collidepoint(evento.pos):
+                    reiniciar_jogo()
+                    return
+
+def primeira_cor_valida():
+    cor_primeira_cobra = random.choice(CORES)
+    cor_primeira_maca = random.choice(CORES)
+    while cor_primeira_cobra == cor_primeira_maca:
+        cor_primeira_maca = random.choice(CORES)
+    return cor_primeira_cobra, cor_primeira_maca
 
 pygame.init()
 tela = pygame.display.set_mode(TAMANHO_JANELA)
 pygame.display.set_caption('Jogo da Cobrinha')
 
-segmentos_cobra = [{'pos': (250, 50), 'cor': random.choice(CORES)}]
+segmentos_cobra = [{'pos': (250, 50), 'cor': primeira_cor_valida()[0]}]
 direcao_cobra = K_LEFT
 
-maca = {'pos': posicao_aleatoria(), 'cor': random.choice(CORES)}
+maca = {'pos': posicao_aleatoria(), 'cor': primeira_cor_valida()[1]}
 
 score = 0
 level = 1
@@ -101,6 +136,8 @@ while True:
                 level += 1
 
             maca = {'pos': posicao_aleatoria(), 'cor': random.choice(CORES)}
+            while maca['cor'] == segmentos_cobra[0]['cor']:
+                maca['cor'] = random.choice(CORES)
 
         for i in range(len(segmentos_cobra) - 1, 0, -1):
             segmentos_cobra[i]['pos'] = segmentos_cobra[i - 1]['pos']
@@ -115,11 +152,13 @@ while True:
             segmentos_cobra[0]['pos'] = (segmentos_cobra[0]['pos'][0] + TAMANHO_PIXEL, segmentos_cobra[0]['pos'][1])
 
         if fora_dos_limites(segmentos_cobra[0]['pos']):
-            reiniciar_jogo()
+            tela_perdeu(score)
+            jogando = False
 
         for segmento in segmentos_cobra[1:]:
             if comer(segmentos_cobra[0]['pos'], segmento['pos']):
-                reiniciar_jogo()
+                tela_perdeu(score)
+                jogando = False
                 break
 
         fonte = pygame.font.Font(None, 36)
